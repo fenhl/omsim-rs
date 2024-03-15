@@ -1,13 +1,73 @@
+use std::backtrace::Backtrace;
 use std::collections::HashMap;
 use arrayref::array_ref;
 use super::data::*;
 
 pub fn parse_puzzle(data: &[u8]) -> Result<Puzzle, &'static str>{
-    PuzzleParser::new(data).parse_puzzle()
+    let mut parser = BaseParser::new(data);
+    if parser.parse_int()? != 3{
+        return Err("not an opus magnum puzzle");
+    }
+    let name = parser.parse_string()?;
+    let _creator = parser.parse_long()?;
+    let _permissions = parser.parse_long()?;
+    let reagents = parser.parse_list(|s| s.parse_molecule())?;
+    let products = parser.parse_list(|s| s.parse_molecule())?;
+    let product_multiplier = parser.parse_int()?;
+    // blah blah production info
+    Ok(Puzzle{ name, reagents, products, product_multiplier, production_info: None })
 }
 
-pub fn parse_solution(data: &[u8]) -> Option<Solution>{
-    None
+pub fn parse_solution(data: &[u8]) -> Result<Solution, &'static str>{
+    let mut parser = BaseParser::new(data);
+    if parser.parse_int()? != 7 {
+        return Err("not an opus magnum solution");
+    }
+    let _puzzle_id = parser.parse_string()?;
+    let name = parser.parse_string()?;
+    let metrics = match parser.parse_int()? {
+        0 => None,
+        4 => {
+            if parser.parse_int()? != 0 { return Err("invalid solution (0 != 0)") }
+            let cycles = parser.parse_int()?;
+            if parser.parse_int()? != 1 { return Err("invalid solution (1 != 1)") }
+            let cost = parser.parse_int()?;
+            if parser.parse_int()? != 2 { return Err("invalid solution (2 != 2)") }
+            let area = parser.parse_int()?;
+            if parser.parse_int()? != 3 { return Err("invalid solution (3 != 3)") }
+            let instructions = parser.parse_int()?;
+            Some(Metrics{ cycles, cost, area, instructions })
+        },
+        _ => return Err("invalid number of metrics")
+    };
+    let parts: Vec<Part> = parser.parse_list(|p| {
+        let part_name = p.parse_string()?;
+        if p.parse_byte()? != 1 { return Err("invalid solution part (1 != 1)") }
+        let pos = p.parse_i_hex_index()?;
+        let _arm_length = p.parse_int()?;
+        let rotation = p.parse_int()?;
+        let index = p.parse_int()? as usize;
+        let instructions = p.parse_list(|p| {
+            let idx = p.parse_int()?;
+            let _instr = p.parse_byte()?;
+            Ok((Instruction::Blank, idx))
+        })?;
+
+        let mut extra_hexes = if part_name == "track" {
+            p.parse_list(|p| { p.parse_i_hex_index() })?
+        } else { Vec::new() };
+
+        let _arm_num = p.parse_int()? + 1;
+
+        let mut cond_id= 0;
+        if part_name == "pipe" {
+            cond_id = p.parse_int()?;
+            extra_hexes = p.parse_list(|p| { p.parse_i_hex_index() })?;
+        }
+
+        Ok(Part{ ty: PartType::Arm, pos, rotation, index, extra_hexes, instructions })
+    })?;
+    Ok(Solution{ name, metrics, parts })
 }
 
 // byte parsing
@@ -52,6 +112,7 @@ impl<'a> BaseParser<'a>{
             self.data = &self.data[4..];
             Ok(result)
         }else{
+            println!("a {}", Backtrace::capture());
             Err("not enough bytes to read int")
         }
     }
@@ -97,8 +158,12 @@ impl<'a> BaseParser<'a>{
         Ok(result)
     }
 
-    fn parse_hex_index(&mut self) -> Result<HexIndex, &'static str>{
+    fn parse_b_hex_index(&mut self) -> Result<HexIndex, &'static str>{
         Ok(HexIndex{ p: self.parse_sbyte()? as i32, q: self.parse_sbyte()? as i32 })
+    }
+
+    fn parse_i_hex_index(&mut self) -> Result<HexIndex, &'static str>{
+        Ok(HexIndex{ p: self.parse_int()?, q: self.parse_int()? })
     }
 
     fn parse_atom(&mut self) -> Result<Atom, &'static str>{
@@ -135,7 +200,7 @@ impl<'a> BaseParser<'a>{
     }
 
     fn parse_bond(&mut self) -> Result<Bond, &'static str>{
-        Ok(Bond{ ty: self.parse_bond_type()?, start: self.parse_hex_index()?, end: self.parse_hex_index()? })
+        Ok(Bond{ ty: self.parse_bond_type()?, start: self.parse_b_hex_index()?, end: self.parse_b_hex_index()? })
     }
 
     fn parse_molecule(&mut self) -> Result<Molecule, &'static str>{
@@ -143,38 +208,11 @@ impl<'a> BaseParser<'a>{
             atoms: HashMap::from_iter(self.parse_list(
                 |s| {
                     let atom = s.parse_atom()?;
-                    let index = s.parse_hex_index()?;
+                    let index = s.parse_b_hex_index()?;
                     Ok((index, atom))
                 }
             )?),
             bonds: self.parse_list(|s| s.parse_bond())?
         })
-    }
-}
-
-// puzzle parsing
-
-struct PuzzleParser<'a>{
-    inner: BaseParser<'a>
-}
-
-impl<'a> PuzzleParser<'a>{
-
-    fn new(data: &'a [u8]) -> Self{
-        Self{ inner: BaseParser::new(data) }
-    }
-
-    fn parse_puzzle(mut self) -> Result<Puzzle, &'static str>{
-        if self.inner.parse_int()? != 3{
-            return Err("not an opus magnum puzzle");
-        }
-        let _name = self.inner.parse_string()?;
-        let _creator = self.inner.parse_long()?;
-        let _permissions = self.inner.parse_long()?;
-        let reagents = self.inner.parse_list(|s| s.parse_molecule())?;
-        let products = self.inner.parse_list(|s| s.parse_molecule())?;
-        let product_multiplier = self.inner.parse_int()?;
-        // blah blah production info
-        Ok(Puzzle{ reagents, products, product_multiplier, production_info: None })
     }
 }

@@ -5,6 +5,7 @@ use std::fmt::Debug;
 
 #[derive(Debug)]
 pub struct Puzzle{
+    pub name: String,
     pub reagents: Vec<Molecule>,
     pub products: Vec<Molecule>,
     pub product_multiplier: i32,
@@ -14,7 +15,17 @@ pub struct Puzzle{
 
 #[derive(Debug)]
 pub struct Solution{
+    pub name: String,
+    pub metrics: Option<Metrics>,
     pub parts: Vec<Part>
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
+pub struct Metrics{
+    pub cycles: i32,
+    pub cost: i32,
+    pub area: i32,
+    pub instructions: i32
 }
 
 // Production info
@@ -80,11 +91,11 @@ pub enum BondType{
 pub struct Part{
     pub ty: PartType,
     pub pos: HexIndex,
-    pub rotation: u8,
+    pub rotation: i32,
     // blehh
     pub index: usize, // arm number, input/output index, conduit id
-    pub extra_hexes: Vec<HexIndex>, // track/conduit hexes
-    pub instructions: Vec<Instruction>
+    pub extra_hexes: Vec<HexIndex>,
+    pub instructions: Vec<(Instruction, i32)>
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
