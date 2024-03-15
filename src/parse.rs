@@ -10,28 +10,16 @@ pub fn parse_solution(data: &[u8]) -> Option<Solution>{
     None
 }
 
-struct PuzzleParser<'a>{
+// byte parsing
+
+struct BaseParser<'a>{
     data: &'a [u8]
 }
 
-impl<'a> PuzzleParser<'a>{
+impl<'a> BaseParser<'a>{
 
     fn new(data: &'a [u8]) -> Self{
         Self{ data }
-    }
-
-    fn parse_puzzle(mut self) -> Result<Puzzle, &'static str>{
-        if self.parse_int()? != 3{
-            return Err("not an opus magnum puzzle");
-        }
-        let _name = self.parse_string()?;
-        let _creator = self.parse_long()?;
-        let _permissions = self.parse_long()?;
-        let reagents = self.parse_list(|s| s.parse_molecule())?;
-        let products = self.parse_list(|s| s.parse_molecule())?;
-        let product_multiplier = self.parse_int()?;
-        // blah blah production info
-        Ok(Puzzle{ reagents, products, product_multiplier, production_info: None })
     }
 
     fn parse_byte(&mut self) -> Result<u8, &'static str>{
@@ -161,5 +149,32 @@ impl<'a> PuzzleParser<'a>{
             )?),
             bonds: self.parse_list(|s| s.parse_bond())?
         })
+    }
+}
+
+// puzzle parsing
+
+struct PuzzleParser<'a>{
+    inner: BaseParser<'a>
+}
+
+impl<'a> PuzzleParser<'a>{
+
+    fn new(data: &'a [u8]) -> Self{
+        Self{ inner: BaseParser::new(data) }
+    }
+
+    fn parse_puzzle(mut self) -> Result<Puzzle, &'static str>{
+        if self.inner.parse_int()? != 3{
+            return Err("not an opus magnum puzzle");
+        }
+        let _name = self.inner.parse_string()?;
+        let _creator = self.inner.parse_long()?;
+        let _permissions = self.inner.parse_long()?;
+        let reagents = self.inner.parse_list(|s| s.parse_molecule())?;
+        let products = self.inner.parse_list(|s| s.parse_molecule())?;
+        let product_multiplier = self.inner.parse_int()?;
+        // blah blah production info
+        Ok(Puzzle{ reagents, products, product_multiplier, production_info: None })
     }
 }
