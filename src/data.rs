@@ -62,16 +62,17 @@ pub struct Bond{
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Atom{
-    Air, Fire, Water, Earth,
-    #[default] Salt, Quicksilver, Vitae, Mors,
+    #[default] Salt, Air, Earth, Fire, Water,
+    Quicksilver, Vitae, Mors,
     Lead, Tin, Iron, Copper, Silver, Gold,
-    Quintessence
+    Quintessence,
+    Repeat
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub enum BondType{
     #[default] Normal,
-    Triplex{ red: bool, yellow: bool, gray: bool }
+    Triplex{ red: bool, black: bool, yellow: bool }
 }
 
 // Parts
