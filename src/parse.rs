@@ -10,12 +10,12 @@ pub fn parse_puzzle(data: &[u8]) -> Result<Puzzle, &'static str>{
     }
     let name = parser.parse_string()?;
     let _creator = parser.parse_long()?;
-    let _permissions = parser.parse_long()?;
+    let permissions = Permissions::from_bits_retain(parser.parse_ulong()?);
     let reagents = parser.parse_list(|s| s.parse_molecule())?;
     let products = parser.parse_list(|s| s.parse_molecule())?;
     let product_multiplier = parser.parse_int()?;
     // blah blah production info
-    Ok(Puzzle{ name, reagents, products, product_multiplier, production_info: None })
+    Ok(Puzzle{ name, reagents, products, permissions, product_multiplier, production_info: None })
 }
 
 pub fn parse_solution(data: &[u8]) -> Result<Solution, &'static str>{
@@ -133,6 +133,16 @@ impl<'a> BaseParser<'a>{
             Ok(result)
         }else{
             Err("not enough bytes to read long")
+        }
+    }
+
+    fn parse_ulong(&mut self) -> Result<u64, &'static str>{
+        if self.data.len() >= 8{
+            let result = u64::from_le_bytes(array_ref![self.data, 0, 8].clone());
+            self.data = &self.data[8..];
+            Ok(result)
+        }else{
+            Err("not enough bytes to read ulong")
         }
     }
 

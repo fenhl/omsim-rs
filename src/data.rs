@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
+use bitflags::bitflags;
 
 // Puzzle and solution files
 
@@ -9,6 +10,7 @@ pub struct Puzzle{
     pub reagents: Vec<Molecule>,
     pub products: Vec<Molecule>,
     pub product_multiplier: i32,
+    pub permissions: Permissions,
 
     pub production_info: Option<ProductionInfo>
 }
@@ -26,6 +28,53 @@ pub struct Metrics{
     pub cost: i32,
     pub area: i32,
     pub instructions: i32
+}
+
+bitflags! {
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+    pub struct Permissions: u64{
+        const SIMPLE_ARM = 1;
+        const MULTI_ARMS = 2;
+        const PISTON_ARM = 4;
+        const TRACK = 8;
+        const BONDER = 0x00000100;
+        const UNBONDER = 0x00000200;
+        const MULTI_BONDER = 0x00000400;
+        const TRIPLEX_BONDER = 0x00000800;
+        const CALCIFICATION = 0x00001000;
+        const DUPLICATION = 0x00002000;
+        const PROJECTION = 0x00004000;
+        const PURIFICATION = 0x00008000;
+        const ANIMISMUS = 0x00010000;
+        const DISPOSAL = 0x00020000;
+        const QUINTESSENCE = 0x00040000;
+        const BERLO = 0x10000000;
+
+        const GRAB_TURN_INSTRUCTIONS = 0x00400000;
+        const DROP_INSTRUCTION = 0x00800000;
+        const RESET_INSTRUCTION = 0x01000000;
+        const REPEAT_INSTRUCTION = 0x02000000;
+        const PIVOT_INSTRUCTIONS = 0x04000000;
+
+        const DEFAULT_PERMISSIONS
+            = Self::SIMPLE_ARM.bits()
+            | Self::MULTI_ARMS.bits()
+            | Self::PISTON_ARM.bits()
+            | Self::TRACK.bits()
+            | Self::BONDER.bits()
+            | Self::UNBONDER.bits()
+            | Self::MULTI_BONDER.bits()
+            | Self::CALCIFICATION.bits()
+            | Self::GRAB_TURN_INSTRUCTIONS.bits()
+            | Self::DROP_INSTRUCTION.bits()
+            | Self::RESET_INSTRUCTION.bits()
+            | Self::REPEAT_INSTRUCTION.bits()
+            | Self::PIVOT_INSTRUCTIONS.bits();
+
+        // mark unknown bits as being potentially used
+        const _ = !0;
+    }
 }
 
 // Production info
