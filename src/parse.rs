@@ -107,7 +107,7 @@ impl<'a> BaseParser<'a>{
     }
 
     fn parse_int(&mut self) -> Result<i32, &'static str>{
-        if self.data.len() > 4{
+        if self.data.len() >= 4{
             let result = i32::from_le_bytes(array_ref![self.data, 0, 4].clone());
             self.data = &self.data[4..];
             Ok(result)
@@ -118,7 +118,7 @@ impl<'a> BaseParser<'a>{
     }
 
     fn parse_long(&mut self) -> Result<i64, &'static str>{
-        if self.data.len() > 4{
+        if self.data.len() >= 8{
             let result = i64::from_le_bytes(array_ref![self.data, 0, 8].clone());
             self.data = &self.data[8..];
             Ok(result)
