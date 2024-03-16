@@ -44,28 +44,26 @@ pub fn parse_solution(data: &[u8]) -> Result<Solution, &'static str>{
         let part_name = p.parse_string()?;
         if p.parse_byte()? != 1 { return Err("invalid solution part (1 != 1)") }
         let pos = p.parse_i_hex_index()?;
-        let _arm_length = p.parse_int()?;
+        let arm_length = p.parse_int()?;
         let rotation = p.parse_int()?;
-        let index = p.parse_int()? as usize;
+        let index = p.parse_int()?;
         let instructions = p.parse_list(|p| {
             let idx = p.parse_int()?;
             let _instr = p.parse_byte()?;
             Ok((Instruction::Blank, idx))
         })?;
 
-        let mut extra_hexes = if part_name == "track" {
+        let mut track_hexes = if part_name == "track" {
             p.parse_list(|p| { p.parse_i_hex_index() })?
         } else { Vec::new() };
 
-        let _arm_num = p.parse_int()? + 1;
+        let arm_number = p.parse_int()? + 1;
 
-        let mut cond_id= 0;
-        if part_name == "pipe" {
-            cond_id = p.parse_int()?;
-            extra_hexes = p.parse_list(|p| { p.parse_i_hex_index() })?;
-        }
+        let (conduit_index, conduit_hexes) = if part_name == "pipe" {
+            (p.parse_int()?, p.parse_list(|p| { p.parse_i_hex_index() })?)
+        } else { (0, Vec::new()) };
 
-        Ok(Part{ ty: PartType::Arm, pos, rotation, index, extra_hexes, instructions })
+        Ok(Part{ ty: PartType::Arm, pos, rotation, arm_number, arm_length, index, conduit_index, track_hexes, conduit_hexes, instructions })
     })?;
     Ok(Solution{ name, metrics, parts })
 }
