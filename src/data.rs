@@ -7,6 +7,7 @@ use bitflags::bitflags;
 #[derive(Debug)]
 pub struct Puzzle{
     pub name: String,
+    pub creator_id: u64,
     pub reagents: Vec<Molecule>,
     pub products: Vec<Molecule>,
     pub product_multiplier: i32,
@@ -81,6 +82,7 @@ bitflags! {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProductionInfo{
+    pub isolation: bool,
     pub chambers: Vec<Chamber>,
     pub conduits: Vec<Conduit>
 }
@@ -100,8 +102,24 @@ pub struct Conduit{
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ChamberType{
-    Medium,
-    // ...
+    Small, SmallWide, SmallWider,
+    Medium, MediumWide,
+    Large
+}
+
+impl ChamberType{
+    // it's not worth an extra dependency to autogen this
+    pub fn from_name(name: &str) -> Option<ChamberType>{
+        Some(match name{
+            "Small" => ChamberType::Small,
+            "SmallWide" => ChamberType::SmallWide,
+            "SmallWider" => ChamberType::SmallWider,
+            "Medium" => ChamberType::Medium,
+            "MediumWide" => ChamberType::MediumWide,
+            "Large" => ChamberType::Large,
+            _ => return None
+        })
+    }
 }
 
 // Atoms and molecules

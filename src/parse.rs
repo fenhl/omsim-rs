@@ -9,13 +9,34 @@ pub fn parse_puzzle(data: &[u8]) -> Result<Puzzle, &'static str>{
         return Err("not an opus magnum puzzle");
     }
     let name = parser.parse_string()?;
-    let _creator = parser.parse_long()?;
+    let creator_id = parser.parse_ulong()?;
     let permissions = Permissions::from_bits_retain(parser.parse_ulong()?);
     let reagents = parser.parse_list(|s| s.parse_molecule())?;
     let products = parser.parse_list(|s| s.parse_molecule())?;
     let product_multiplier = parser.parse_int()?;
-    // blah blah production info
-    Ok(Puzzle{ name, reagents, products, permissions, product_multiplier, production_info: None })
+
+    let production_info = if parser.parse_bool()?{
+        let _shrink_left = parser.parse_bool()?; // visual, don't care
+        let _shrink_right = parser.parse_bool()?;
+        let isolation = parser.parse_bool()?;
+        let chambers = parser.parse_list(|p| Ok(Chamber{
+            pos: p.parse_b_hex_index()?,
+            ty: ChamberType::from_name(&p.parse_string()?).ok_or("invalid chamber type")?
+        }))?;
+        let conduits = parser.parse_list(|p| Ok(Conduit{
+            pos_a: p.parse_b_hex_index()?,
+            pos_b: p.parse_b_hex_index()?,
+            hexes: p.parse_list(|p| p.parse_b_hex_index())?
+        }))?;
+        // vial visuals also ignored
+        Some(ProductionInfo{
+            isolation,
+            chambers,
+            conduits
+        })
+    } else { None };
+
+    Ok(Puzzle{ name, creator_id, reagents, products, permissions, product_multiplier, production_info })
 }
 
 pub fn parse_solution(data: &[u8]) -> Result<Solution, &'static str>{
