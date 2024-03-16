@@ -49,8 +49,8 @@ pub fn parse_solution(data: &[u8]) -> Result<Solution, &'static str>{
         let index = p.parse_int()?;
         let instructions = p.parse_list(|p| {
             let idx = p.parse_int()?;
-            let _instr = p.parse_byte()?;
-            Ok((Instruction::Blank, idx))
+            let instr = p.parse_byte()?;
+            Ok((Instruction::from_id(instr).ok_or("invalid instruction id")?, idx))
         })?;
 
         let mut track_hexes = if part_name == "track" {
@@ -63,7 +63,18 @@ pub fn parse_solution(data: &[u8]) -> Result<Solution, &'static str>{
             (p.parse_int()?, p.parse_list(|p| { p.parse_i_hex_index() })?)
         } else { (0, Vec::new()) };
 
-        Ok(Part{ ty: PartType::Arm, pos, rotation, arm_number, arm_length, index, conduit_index, track_hexes, conduit_hexes, instructions })
+        Ok(Part{
+            ty: PartType::from_name(&part_name).ok_or("invalid part type")?,
+            pos,
+            rotation,
+            arm_number,
+            arm_length,
+            index,
+            conduit_index,
+            track_hexes,
+            conduit_hexes,
+            instructions
+        })
     })?;
     Ok(Solution{ name, metrics, parts })
 }
@@ -165,25 +176,7 @@ impl<'a> BaseParser<'a>{
     }
 
     fn parse_atom(&mut self) -> Result<Atom, &'static str>{
-        Ok(match self.parse_byte()? {
-            1 => Atom::Salt,
-            2 => Atom::Air,
-            3 => Atom::Earth,
-            4 => Atom::Fire,
-            5 => Atom::Water,
-            6 => Atom::Quicksilver,
-            7 => Atom::Gold,
-            8 => Atom::Silver,
-            9 => Atom::Copper,
-            10 => Atom::Iron,
-            11 => Atom::Tin,
-            12 => Atom::Lead,
-            13 => Atom::Vitae,
-            14 => Atom::Mors,
-            15 => Atom::Repeat,
-            16 => Atom::Quintessence,
-            _ => return Err("invalid atom type")
-        })
+        Ok(Atom::from_id(self.parse_byte()?).ok_or("invalid atom type")?)
     }
 
     fn parse_bond_type(&mut self) -> Result<BondType, &'static str>{
