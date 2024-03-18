@@ -198,10 +198,12 @@ impl<'a> BaseParser<'a>{
         Ok(result)
     }
 
+    /// Parse a hex index represented with signed byte offsets, used in puzzles.
     fn parse_b_hex_index(&mut self) -> Result<HexIndex, &'static str>{
         Ok(HexIndex{ p: self.parse_sbyte()? as i32, q: self.parse_sbyte()? as i32 })
     }
 
+    /// Parse a hex index represented with signed 32-bit integer offsets, used in solutions.
     fn parse_i_hex_index(&mut self) -> Result<HexIndex, &'static str>{
         Ok(HexIndex{ p: self.parse_int()?, q: self.parse_int()? })
     }

@@ -4,25 +4,41 @@ use bitflags::bitflags;
 
 // Puzzle and solution files
 
+/// A puzzle, as parsed from a puzzle file.
+/// No attempt is made to check for invalid puzzles. In particular, they may have no inputs or outputs, no enabled parts, or be unsolveable.
 #[derive(Debug)]
 pub struct Puzzle{
+    /// String ID.
     pub name: String,
+    /// Steam ID of the creator of this puzzle.
     pub creator_id: u64,
+    /// Input molecules.
     pub reagents: Vec<Molecule>,
+    /// Output molecules.
     pub products: Vec<Molecule>,
+    /// Multiplier for the number of output molecules required to complete the puzzle.
     pub product_multiplier: i32,
+    /// Allowed glyphs and mechanisms.
     pub permissions: Permissions,
 
+    /// If this puzzle is a production puzzle, the layout of chambers and conduits, otherwise None.
     pub production_info: Option<ProductionInfo>
 }
 
+/// A solution to a puzzle, as parsed from a solution file.
+/// No attempt is made to check for invalid solutions. In particular, parts may have invalid state (like sizes >3).
 #[derive(Debug)]
 pub struct Solution{
+    /// Display name.
     pub name: String,
+    /// If solved, the metrics *recorded* in the solution file, otherwise None.
+    /// This is unrelated to whether the solution is valid, completes, or actually has these metrics.
     pub metrics: Option<Metrics>,
+    /// Placed parts, and their associated instructions.
     pub parts: Vec<Part>
 }
 
+/// Metrics that a solved solution may have.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Default)]
 pub struct Metrics{
     pub cycles: i32,
@@ -32,6 +48,7 @@ pub struct Metrics{
 }
 
 bitflags! {
+    /// The set of permission flags that may be enabled on a puzzle, describing enabled glyphs, mechanisms, and instructions.
     #[repr(transparent)]
     #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     pub struct Permissions: u64{
@@ -58,6 +75,7 @@ bitflags! {
         const REPEAT_INSTRUCTION = 0x02000000;
         const PIVOT_INSTRUCTIONS = 0x04000000;
 
+        /// Permissions enabled on newly-created puzzles.
         const DEFAULT_PERMISSIONS
             = Self::SIMPLE_ARM.bits()
             | Self::MULTI_ARMS.bits()
@@ -80,26 +98,43 @@ bitflags! {
 
 // Production info
 
+/// Information relevant only to production puzzles.
+/// Purely visual information, like vial placement, is not stored.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProductionInfo{
+    /// Whether the inputs and outputs must be placed in different chambers.
     pub isolation: bool,
+    /// The chambers/cabinets that parts may be placed in.
     pub chambers: Vec<Chamber>,
+    /// The conduits defined by the puzzle.
+    /// Note that these are only used when creating a new solution to a puzzle; solutions may have any number and layout of conduits.
+    /// These are considered illegal in the same sense as overlap.
     pub conduits: Vec<Conduit>
 }
 
+/// A chamber/cabinet that parts may be placed within in production puzzles.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Chamber{
+    /// Position on the board, as an offset from the origin (within u8,u8 range).
     pub pos: HexIndex,
+    /// Type/size.
     pub ty: ChamberType
 }
 
+/// A conduit defined by a puzzle.
+/// Note that these are only used when creating a new solution to a puzzle; solutions may have any number and layout of conduits.
+/// Since the game does not allow moving conduits between chambers, conduits store only starting positions and not chamber indices.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Conduit{
+    /// Default starting position of one end of the conduit.
     pub pos_a: HexIndex,
+    /// Default ending position of the other end of the conduit.
     pub pos_b: HexIndex,
+    /// Footprint of the conduit in its default rotation.
     pub hexes: Vec<HexIndex>
 }
 
+/// Supported chamber sizes.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ChamberType{
     Small, SmallWide, SmallWider,
@@ -124,19 +159,28 @@ impl ChamberType{
 
 // Atoms and molecules
 
+/// A molecule, or collection of bonded atoms that move together.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Molecule{
+    /// The atoms in this molecule by relative position.
     pub atoms: HashMap<HexIndex, Atom>,
+    /// The bonds between atoms.
     pub bonds: Vec<Bond>
 }
 
+/// A bond between atoms.
+/// Note that `start` and `end` may be non-adjacent in the case of quantum bonds.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Bond{
+    /// One end of the bond.
     pub start: HexIndex,
+    /// The other end of the bond.
     pub end: HexIndex,
+    /// The type of bond this is (normal or triplex).
     pub ty: BondType
 }
 
+/// An atom type, or element.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Atom{
     #[default] Salt, Air, Earth, Fire, Water,
@@ -146,9 +190,10 @@ pub enum Atom{
     Repeat
 }
 
-impl Atom {
+impl Atom{
+    /// Get an atom type by byte ID, or `None` if the ID is invalid.
     pub fn from_id(id: u8) -> Option<Atom>{
-        Some(match id {
+        Some(match id{
             1 => Atom::Salt,
             2 => Atom::Air,
             3 => Atom::Earth,
@@ -170,6 +215,7 @@ impl Atom {
     }
 }
 
+/// A bond type (normal or triplex).
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub enum BondType{
     #[default] Normal,
@@ -178,6 +224,8 @@ pub enum BondType{
 
 // Parts
 
+/// A part, as parsed from a solution file.
+/// Invalid state, such as arms with sizes >3, or instructions on glyphs, is preserved.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Part{
     pub ty: PartType,
@@ -185,13 +233,21 @@ pub struct Part{
     pub rotation: i32,
     pub arm_number: i32,
     pub arm_length: i32,
+    /// If this is an input or output, index of which input/output this is for.
     pub index: i32,
+    /// If this is a conduit, index of which conduit this is an end of.
+    /// This is *not* validated against the puzzle's defined conduits.
     pub conduit_index: i32,
+    /// If this is a track, the hexes this track covers in placement order.
     pub track_hexes: Vec<HexIndex>,
+    /// If this is a conduit, the hexes this conduit occupies.
     pub conduit_hexes: Vec<HexIndex>,
+    /// If this is an arm, the instructions this arm has, as `(instruction, index)`.
+    /// This is *not* guaranteed to be valid or runnable.
     pub instructions: Vec<(Instruction, i32)>
 }
 
+/// A part type, or kind of mechanism or glyph.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum PartType{
     // IO
@@ -242,6 +298,7 @@ impl PartType {
     }
 }
 
+/// A type of instruction.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default)]
 pub enum Instruction{
     #[default]
@@ -278,8 +335,11 @@ impl Instruction {
 
 // Misc
 
+/// A position or offset on a hex grid.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct HexIndex{
+    /// Position along the horizontal P axis (also called X).
     pub p: i32,
+    /// Position along the up-right Q axis.
     pub q: i32
 }
