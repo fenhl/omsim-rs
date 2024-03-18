@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::ops::{Add, AddAssign, Sub, SubAssign};
 use bitflags::bitflags;
 
 // Puzzle and solution files
 
 /// A puzzle, as parsed from a puzzle file.
 /// No attempt is made to check for invalid puzzles. In particular, they may have no inputs or outputs, no enabled parts, or be unsolveable.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Puzzle{
     /// String ID.
     pub name: String,
@@ -27,10 +28,12 @@ pub struct Puzzle{
 
 /// A solution to a puzzle, as parsed from a solution file.
 /// No attempt is made to check for invalid solutions. In particular, parts may have invalid state (like sizes >3).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Solution{
     /// Display name.
     pub name: String,
+    /// String ID of the puzzle this solves.
+    pub puzzle_name: String,
     /// If solved, the metrics *recorded* in the solution file, otherwise None.
     /// This is unrelated to whether the solution is valid, completes, or actually has these metrics.
     pub metrics: Option<Metrics>,
@@ -93,6 +96,34 @@ bitflags! {
 
         // mark unknown bits as being potentially used
         const _ = !0;
+    }
+}
+
+impl Puzzle{
+
+    pub fn clean_solution(&self, solution: &Solution) -> Result<Solution, &'static str>{
+        // check puzzle name
+        if self.name != solution.puzzle_name{
+            return Err("solution is for the wrong puzzle");
+        }
+        // check that there are no IOOB inputs/outputs
+        for part in &solution.parts{
+            if part.ty == PartType::Input || part.ty == PartType::Output || part.ty == PartType::PolymerOutput{
+                if part.index < 0 {
+                    return Err("solution contains input/output with negative index");
+                }
+            }
+            if part.ty == PartType::Input && (part.index as usize) >= self.reagents.len(){
+                return Err("solution contains input with out-of-bounds index");
+            }
+            if (part.ty == PartType::Output || part.ty == PartType::PolymerOutput) && (part.index as usize) >= self.products.len(){
+                return Err("solution contains output with out-of-bounds index");
+            }
+        }
+        // remove forbidden parts
+        let cleaned = solution.clone();
+        // TODO
+        Ok(cleaned)
     }
 }
 
@@ -160,12 +191,35 @@ impl ChamberType{
 // Atoms and molecules
 
 /// A molecule, or collection of bonded atoms that move together.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Molecule{
     /// The atoms in this molecule by relative position.
     pub atoms: HashMap<HexIndex, Atom>,
     /// The bonds between atoms.
     pub bonds: Vec<Bond>
+}
+
+impl Molecule{
+    pub fn mapped_positions(&self, f: impl Fn(HexIndex) -> HexIndex) -> Molecule{
+        // it's just easier to copy it
+        let mut next_atoms = HashMap::with_capacity(self.atoms.len());
+        let mut next_bonds = Vec::with_capacity(self.bonds.len());
+        for (pos, atom) in &self.atoms{
+            next_atoms.insert(f(*pos), *atom);
+        }
+        for bond in &self.bonds{
+            next_bonds.push(Bond{ start: f(bond.start), end: f(bond.end), ty: bond.ty })
+        }
+        Molecule{ atoms: next_atoms, bonds: next_bonds }
+    }
+
+    pub fn translated(&self, by: HexIndex) -> Molecule{
+        self.mapped_positions(|pos| pos + by)
+    }
+
+    pub fn rotated(&self, around: HexIndex, by: u8) -> Molecule{
+        self.mapped_positions(|pos| pos.rotated(around, by))
+    }
 }
 
 /// A bond between atoms.
@@ -256,7 +310,8 @@ pub enum PartType{
     Arm, BiArm, TriArm, HexArm, PistonArm,
     Track, Berlo,
     // Glyphs
-    Equilibrium, Bonding, MultiBonding, Debonding, Calcification,
+    Equilibrium, Bonding, MultiBonding,
+    Unbonding, Calcification,
     Projection, Purification,
     Duplication, Animismus,
     Unification, Dispersion,
@@ -282,7 +337,7 @@ impl PartType {
             "glyph-marker" => PartType::Equilibrium,
             "bonder" => PartType::Bonding,
             "bonder-speed" => PartType::MultiBonding,
-            "unbonder" => PartType::Debonding,
+            "unbonder" => PartType::Unbonding,
             "glyph-calcification" => PartType::Calcification,
             "glyph-projection" => PartType::Projection,
             "glyph-purification" => PartType::Purification,
@@ -338,8 +393,60 @@ impl Instruction {
 /// A position or offset on a hex grid.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct HexIndex{
-    /// Position along the horizontal P axis (also called X).
-    pub p: i32,
-    /// Position along the up-right Q axis.
-    pub q: i32
+    /// Position along the horizontal Q axis (also called X).
+    pub q: i32,
+    /// Position along the up-right R axis.
+    pub r: i32
+}
+
+impl HexIndex{
+    /// Implicit S coordinate of this
+    pub fn s(self) -> i32{
+        -self.q - self.r
+    }
+
+    pub fn rotated_cw(self) -> HexIndex{
+        HexIndex{ q: -self.r, r: -self.s() }
+    }
+
+    pub fn rotated_ccw(self) -> HexIndex{
+        HexIndex{ q: -self.s(), r: -self.q }
+    }
+
+    pub fn rotated(self, around: HexIndex, by: u8) -> HexIndex{
+        let by = ((by % 6) + 6) % 6;
+        let mut offset = self - around;
+        for _ in 0..by {
+            offset = offset.rotated_cw();
+        }
+        offset + around
+    }
+}
+
+impl Add for HexIndex{
+    type Output = HexIndex;
+    fn add(self, rhs: HexIndex) -> HexIndex{
+        HexIndex{ q: self.q + rhs.q, r: self.r + rhs.r }
+    }
+}
+
+impl AddAssign for HexIndex{
+    fn add_assign(&mut self, rhs: HexIndex){
+        self.q += rhs.q;
+        self.r += rhs.r;
+    }
+}
+
+impl Sub for HexIndex{
+    type Output = HexIndex;
+    fn sub(self, rhs: HexIndex) -> HexIndex{
+        HexIndex{ q: self.q - rhs.q, r: self.r - rhs.r }
+    }
+}
+
+impl SubAssign for HexIndex{
+    fn sub_assign(&mut self, rhs: HexIndex){
+        self.q -= rhs.q;
+        self.r -= rhs.r;
+    }
 }

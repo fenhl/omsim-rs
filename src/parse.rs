@@ -44,7 +44,7 @@ pub fn parse_solution(data: &[u8]) -> Result<Solution, &'static str>{
     if parser.parse_int()? != 7 {
         return Err("not an opus magnum solution");
     }
-    let _puzzle_id = parser.parse_string()?;
+    let puzzle_name = parser.parse_string()?;
     let name = parser.parse_string()?;
     let metrics = match parser.parse_int()? {
         0 => None,
@@ -74,15 +74,15 @@ pub fn parse_solution(data: &[u8]) -> Result<Solution, &'static str>{
             Ok((Instruction::from_id(instr).ok_or("invalid instruction id")?, idx))
         })?;
 
-        let mut track_hexes = if part_name == "track" {
+        let track_hexes = if part_name == "track"{
             p.parse_list(|p| { p.parse_i_hex_index() })?
-        } else { Vec::new() };
+        }else{ Vec::new() };
 
         let arm_number = p.parse_int()? + 1;
 
-        let (conduit_index, conduit_hexes) = if part_name == "pipe" {
+        let (conduit_index, conduit_hexes) = if part_name == "pipe"{
             (p.parse_int()?, p.parse_list(|p| { p.parse_i_hex_index() })?)
-        } else { (0, Vec::new()) };
+        }else{ (0, Vec::new()) };
 
         Ok(Part{
             ty: PartType::from_name(&part_name).ok_or("invalid part type")?,
@@ -97,7 +97,7 @@ pub fn parse_solution(data: &[u8]) -> Result<Solution, &'static str>{
             instructions
         })
     })?;
-    Ok(Solution{ name, metrics, parts })
+    Ok(Solution{ name, puzzle_name, metrics, parts })
 }
 
 // byte parsing
@@ -200,12 +200,12 @@ impl<'a> BaseParser<'a>{
 
     /// Parse a hex index represented with signed byte offsets, used in puzzles.
     fn parse_b_hex_index(&mut self) -> Result<HexIndex, &'static str>{
-        Ok(HexIndex{ p: self.parse_sbyte()? as i32, q: self.parse_sbyte()? as i32 })
+        Ok(HexIndex{ q: self.parse_sbyte()? as i32, r: self.parse_sbyte()? as i32 })
     }
 
     /// Parse a hex index represented with signed 32-bit integer offsets, used in solutions.
     fn parse_i_hex_index(&mut self) -> Result<HexIndex, &'static str>{
-        Ok(HexIndex{ p: self.parse_int()?, q: self.parse_int()? })
+        Ok(HexIndex{ q: self.parse_int()?, r: self.parse_int()? })
     }
 
     fn parse_atom(&mut self) -> Result<Atom, &'static str>{

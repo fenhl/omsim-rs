@@ -5,6 +5,7 @@ use crate::parse::{parse_puzzle, parse_solution};
 
 mod parse;
 mod data;
+mod sim;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
