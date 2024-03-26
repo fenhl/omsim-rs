@@ -220,6 +220,10 @@ impl Molecule{
     pub fn rotated(&self, around: HexIndex, by: u8) -> Molecule{
         self.mapped_positions(|pos| pos.rotated(around, by))
     }
+
+    pub fn contains_pos(&self, pos: HexIndex) -> bool{
+        self.atoms.contains_key(&pos)
+    }
 }
 
 /// A bond between atoms.
