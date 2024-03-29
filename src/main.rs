@@ -1,11 +1,7 @@
 use std::env;
 use std::fs::File;
 use std::io::Read;
-use crate::parse::{parse_puzzle, parse_solution};
-
-mod parse;
-mod data;
-mod sim;
+use omsim_rs::parse::{parse_puzzle, parse_solution};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
