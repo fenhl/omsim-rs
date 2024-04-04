@@ -28,6 +28,10 @@ impl Vector2{
         self.length2().sqrt()
     }
 
+    pub fn dist2(self, other: Vector2) -> f32{
+        (self - other).length2()
+    }
+
     pub fn dist(self, other: Vector2) -> f32{
         (self - other).length()
     }
