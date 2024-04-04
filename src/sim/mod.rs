@@ -1,3 +1,5 @@
+mod collision;
+
 use std::fmt::Debug;
 
 use crate::data::{Atom, Bond, HexIndex, HexRotation, Molecule, Part, PartType, Puzzle, Solution};

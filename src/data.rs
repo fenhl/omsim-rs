@@ -477,8 +477,12 @@ impl HexRotation{
         HexRotation{ turns: (((turns.into() % 6) + 6) % 6) as u8 }
     }
 
-    pub fn turns(&self) -> u8{
+    pub fn turns(self) -> u8{
         self.turns
+    }
+
+    pub fn to_radians(self) -> f32{
+        return (self.turns as f32 * 60.0) * (std::f32::consts::PI / 180.0);
     }
 }
 
