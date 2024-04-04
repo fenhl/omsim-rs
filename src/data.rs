@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::convert::Into;
 use std::fmt::Debug;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 use bitflags::bitflags;
@@ -102,10 +103,11 @@ bitflags! {
 impl Puzzle{
 
     pub fn clean_solution(&self, solution: &Solution) -> Result<Solution, &'static str>{
-        // check puzzle name
-        if self.name != solution.puzzle_name{
-            return Err("solution is for the wrong puzzle");
-        }
+        // check puzzle name // don't actually, it's implicit in filenames. check filenames?
+        // if self.name != solution.puzzle_name{
+        //     return Err("solution is for the wrong puzzle");
+        // }
+
         // check that there are no IOOB inputs/outputs
         for part in &solution.parts{
             if part.ty == PartType::Input || part.ty == PartType::Output || part.ty == PartType::PolymerOutput{
@@ -196,19 +198,19 @@ pub struct Molecule{
     /// The atoms in this molecule by relative position.
     pub atoms: HashMap<HexIndex, Atom>,
     /// The bonds between atoms.
-    pub bonds: Vec<Bond>
+    pub bonds: HashSet<Bond>
 }
 
 impl Molecule{
     pub fn mapped_positions(&self, f: impl Fn(HexIndex) -> HexIndex) -> Molecule{
         // it's just easier to copy it
         let mut next_atoms = HashMap::with_capacity(self.atoms.len());
-        let mut next_bonds = Vec::with_capacity(self.bonds.len());
+        let mut next_bonds = HashSet::with_capacity(self.bonds.len());
         for (pos, atom) in &self.atoms{
             next_atoms.insert(f(*pos), *atom);
         }
         for bond in &self.bonds{
-            next_bonds.push(Bond{ start: f(bond.start), end: f(bond.end), ty: bond.ty })
+            next_bonds.insert(Bond{ start: f(bond.start), end: f(bond.end), ty: bond.ty });
         }
         Molecule{ atoms: next_atoms, bonds: next_bonds }
     }
@@ -217,7 +219,7 @@ impl Molecule{
         self.mapped_positions(|pos| pos + by)
     }
 
-    pub fn rotated(&self, around: HexIndex, by: u8) -> Molecule{
+    pub fn rotated(&self, around: HexIndex, by: HexRotation) -> Molecule{
         self.mapped_positions(|pos| pos.rotated(around, by))
     }
 
@@ -314,8 +316,7 @@ pub enum PartType{
     Arm, BiArm, TriArm, HexArm, PistonArm,
     Track, Berlo,
     // Glyphs
-    Equilibrium, Bonding, MultiBonding,
-    Unbonding, Calcification,
+    Equilibrium, Bonding, MultiBonding, Unbonding, Calcification,
     Projection, Purification,
     Duplication, Animismus,
     Unification, Dispersion,
@@ -371,7 +372,7 @@ pub enum Instruction{
 }
 
 impl Instruction {
-    pub fn from_id(id: u8) -> Option<Instruction>{
+    pub const fn from_id(id: u8) -> Option<Instruction>{
         Some(match id{
             b' ' => Instruction::Blank,
             b'G' => Instruction::Grab,
@@ -404,23 +405,22 @@ pub struct HexIndex{
 }
 
 impl HexIndex{
-    /// Implicit S coordinate of this
-    pub fn s(self) -> i32{
+    /// Implicit S coordinate of this coordinate.
+    pub const fn s(self) -> i32{
         -self.q - self.r
     }
 
-    pub fn rotated_cw(self) -> HexIndex{
+    pub const fn rotated_cw(self) -> HexIndex{
         HexIndex{ q: -self.r, r: -self.s() }
     }
 
-    pub fn rotated_ccw(self) -> HexIndex{
+    pub const fn rotated_ccw(self) -> HexIndex{
         HexIndex{ q: -self.s(), r: -self.q }
     }
 
-    pub fn rotated(self, around: HexIndex, by: u8) -> HexIndex{
-        let by = ((by % 6) + 6) % 6;
+    pub fn rotated(self, around: HexIndex, by: HexRotation) -> HexIndex{
         let mut offset = self - around;
-        for _ in 0..by {
+        for _ in 0..by.turns(){
             offset = offset.rotated_cw();
         }
         offset + around
@@ -452,5 +452,68 @@ impl SubAssign for HexIndex{
     fn sub_assign(&mut self, rhs: HexIndex){
         self.q -= rhs.q;
         self.r -= rhs.r;
+    }
+}
+
+/// A rotation on a hex grid.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash)]
+pub struct HexRotation{
+    turns: u8,
+}
+
+impl HexRotation{
+    pub const R0: HexRotation = HexRotation{ turns: 0 };
+    pub const R60: HexRotation = HexRotation{ turns: 1 };
+    pub const R120: HexRotation = HexRotation{ turns: 2 };
+    pub const R180: HexRotation = HexRotation{ turns: 3 };
+    pub const R240: HexRotation = HexRotation{ turns: 4 };
+    pub const R300: HexRotation = HexRotation{ turns: 5 };
+
+    pub fn from_unsigned<T: Into<u64>>(turns: T) -> HexRotation{
+        HexRotation{ turns: (turns.into() % 6) as u8 }
+    }
+
+    pub fn from_signed<T: Into<i64>>(turns: T) -> HexRotation{
+        HexRotation{ turns: (((turns.into() % 6) + 6) % 6) as u8 }
+    }
+
+    pub fn turns(&self) -> u8{
+        self.turns
+    }
+}
+
+// basically any number can be a hex rotation
+// we can't have both Into<usize> and Into<isize>, and we mostly work with u8s and i32s here, so isize wins
+impl<T: Into<i64>> From<T> for HexRotation{
+    fn from(turns: T) -> HexRotation{
+        Self::from_signed(turns.into())
+    }
+}
+
+impl Add for HexRotation{
+    type Output = HexRotation;
+
+    fn add(self, rhs: HexRotation) -> HexRotation{
+        HexRotation{ turns: (self.turns + rhs.turns) % 6 }
+    }
+}
+
+impl AddAssign for HexRotation{
+    fn add_assign(&mut self, rhs: HexRotation){
+        *self = *self + rhs;
+    }
+}
+
+impl Sub for HexRotation{
+    type Output = HexRotation;
+
+    fn sub(self, rhs: HexRotation) -> HexRotation{
+        HexRotation{ turns: ((((self.turns as i8) - (rhs.turns as i8) % 6) + 6) % 6) as u8 }
+    }
+}
+
+impl SubAssign for HexRotation{
+    fn sub_assign(&mut self, rhs: HexRotation) {
+        *self = *self - rhs;
     }
 }

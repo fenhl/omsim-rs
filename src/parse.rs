@@ -1,5 +1,5 @@
 use std::backtrace::Backtrace;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use arrayref::array_ref;
 use super::data::*;
 
@@ -236,7 +236,7 @@ impl<'a> BaseParser<'a>{
                     Ok((index, atom))
                 }
             )?),
-            bonds: self.parse_list(|s| s.parse_bond())?
+            bonds: HashSet::from_iter(self.parse_list(|s| s.parse_bond())?.iter().cloned())
         })
     }
 }
