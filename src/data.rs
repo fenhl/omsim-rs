@@ -29,7 +29,7 @@ pub struct Puzzle{
 
 /// A solution to a puzzle, as parsed from a solution file.
 /// No attempt is made to check for invalid solutions. In particular, parts may have invalid state (like sizes >3).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Solution{
     /// Display name.
     pub name: String,
