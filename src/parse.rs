@@ -130,7 +130,7 @@ impl Solution{
             p.unparse_int(part.rotation);
             p.unparse_int(part.index);
             p.unparse_list(&part.instructions, |p, (instr, idx)| {
-                p.unparse_int(idx);
+                p.unparse_int(*idx);
                 p.unparse_byte(instr.to_id());
             });
             if let PartType::Track = part.ty{
