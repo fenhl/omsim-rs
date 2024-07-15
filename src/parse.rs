@@ -100,6 +100,56 @@ pub fn parse_solution(data: &[u8]) -> Result<Solution, &'static str>{
     Ok(Solution{ name, puzzle_name, metrics, parts })
 }
 
+//TODO function to unparse a puzzle
+
+impl Solution{
+    pub fn unparse(&self) -> Vec<u8>{
+        let mut unparser = BaseUnparser::new();
+        unparser.unparse_int(7);
+        unparser.unparse_string(&self.puzzle_name);
+        unparser.unparse_string(&self.name);
+        match self.metrics {
+            None => unparser.unparse_int(0),
+            Some(Metrics { cycles, cost, area, instructions }) => {
+                unparser.unparse_int(4);
+                unparser.unparse_int(0);
+                unparser.unparse_int(cycles);
+                unparser.unparse_int(1);
+                unparser.unparse_int(cost);
+                unparser.unparse_int(2);
+                unparser.unparse_int(area);
+                unparser.unparse_int(3);
+                unparser.unparse_int(instructions);
+            }
+        }
+        unparser.unparse_list(&self.parts, |p, part| {
+            p.unparse_string(part.ty.to_name());
+            p.unparse_byte(1);
+            p.unparse_i_hex_index(part.pos);
+            p.unparse_int(part.arm_length);
+            p.unparse_int(part.rotation);
+            p.unparse_int(part.index);
+            p.unparse_list(&part.instructions, |p, (instr, idx)| {
+                p.unparse_int(idx);
+                p.unparse_byte(instr.to_id());
+            });
+            if let PartType::Track = part.ty{
+                p.unparse_list(&part.track_hexes, |p, hex| {
+                    p.unparse_i_hex_index(*hex);
+                });
+            }
+            p.unparse_int(part.arm_number - 1);
+            if let PartType::Conduit = part.ty{
+                p.unparse_int(part.conduit_index);
+                p.unparse_list(&part.conduit_hexes, |p, hex| {
+                    p.unparse_i_hex_index(*hex);
+                });
+            }
+        });
+        unparser.finish()
+    }
+}
+
 // byte parsing
 
 struct BaseParser<'a>{
@@ -238,5 +288,57 @@ impl<'a> BaseParser<'a>{
             )?),
             bonds: HashSet::from_iter(self.parse_list(|s| s.parse_bond())?.iter().cloned())
         })
+    }
+}
+
+struct BaseUnparser{
+    data: Vec<u8>
+}
+
+impl BaseUnparser{
+
+    fn new() -> Self{
+        Self{ data: Vec::default() }
+    }
+
+    fn unparse_byte(&mut self, b: u8){
+        self.data.push(b);
+    }
+
+    fn unparse_int(&mut self, n: i32){
+        self.data.extend_from_slice(&n.to_le_bytes());
+    }
+
+    fn unparse_list<T>(&mut self, l: &[T], f: fn(&mut Self, &T) -> ()){
+        self.unparse_int(l.len() as i32);
+        for element in l{
+            f(self, element);
+        }
+    }
+
+    fn unparse_var_int(&mut self, mut n: usize){
+        loop{
+            let mut b = n as u8 & 0x7F;
+            n >>= 7;
+            if n != 0{
+                b |= 0x80;
+            }
+            self.unparse_byte(b);
+            if n == 0{ break }
+        }
+    }
+
+    fn unparse_string(&mut self, s: &str){
+        self.unparse_var_int(s.len());
+        self.data.extend_from_slice(s.as_bytes());
+    }
+
+    fn unparse_i_hex_index(&mut self, HexIndex{ q, r }: HexIndex){
+        self.unparse_int(q);
+        self.unparse_int(r);
+    }
+
+    fn finish(self) -> Vec<u8>{
+        self.data
     }
 }

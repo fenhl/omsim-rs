@@ -356,6 +356,35 @@ impl PartType {
             _ => return None
         })
     }
+
+    pub fn to_name(&self) -> &'static str{
+        match self{
+            Self::Input => "input",
+            Self::Output => "out-std",
+            Self::PolymerOutput => "out-rep",
+            Self::Arm => "arm1",
+            Self::BiArm => "arm2",
+            Self::TriArm => "arm3",
+            Self::HexArm => "arm6",
+            Self::PistonArm => "piston",
+            Self::Track => "track",
+            Self::Berlo => "baron",
+            Self::Equilibrium => "glyph-marker",
+            Self::Bonding => "bonder",
+            Self::MultiBonding => "bonder-speed",
+            Self::Unbonding => "unbonder",
+            Self::Calcification => "glyph-calcification",
+            Self::Projection => "glyph-projection",
+            Self::Purification => "glyph-purification",
+            Self::Duplication => "glyph-duplication",
+            Self::Animismus => "glyph-life-and-death",
+            Self::Unification => "glyph-unification",
+            Self::Dispersion => "glyph-dispersion",
+            Self::TriplexBonding => "bonder-prisma",
+            Self::Disposal => "glyph-disposal",
+            Self::Conduit => "pipe",
+        }
+    }
 }
 
 /// A type of instruction.
@@ -390,6 +419,25 @@ impl Instruction {
             b'C' => Instruction::Repeat,
             _ => return None
         })
+    }
+
+    pub const fn to_id(&self) -> u8{
+        match self{
+            Instruction::Blank => b' ',
+            Instruction::Grab => b'G',
+            Instruction::Drop => b'g',
+            Instruction::RotateClockwise => b'R',
+            Instruction::RotateAnticlockwise => b'r',
+            Instruction::Extend => b'E',
+            Instruction::Retract => b'e',
+            Instruction::PivotClockwise => b'P',
+            Instruction::PivotAnticlockwise => b'p',
+            Instruction::Advance => b'A',
+            Instruction::Retreat => b'a',
+            Instruction::PeriodOverride => b'O',
+            Instruction::Reset => b'X',
+            Instruction::Repeat => b'C',
+        }
     }
 }
 
