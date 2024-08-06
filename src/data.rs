@@ -3,6 +3,7 @@ use std::convert::Into;
 use std::fmt::Debug;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 use bitflags::bitflags;
+use enum_iterator::Sequence;
 
 // Puzzle and solution files
 
@@ -567,5 +568,27 @@ impl Sub for HexRotation{
 impl SubAssign for HexRotation{
     fn sub_assign(&mut self, rhs: HexRotation) {
         *self = *self - rhs;
+    }
+}
+
+impl Sequence for HexRotation{
+    const CARDINALITY: usize = 6;
+
+    fn next(&self) -> Option<Self> {
+        let turns = self.turns % 6;
+        if turns == 5 { None } else { Some(Self { turns: turns + 1 }) }
+    }
+
+    fn previous(&self) -> Option<Self> {
+        let turns = self.turns % 6;
+        if turns == 0 { None } else { Some(Self { turns: turns - 1 }) }
+    }
+
+    fn first() -> Option<Self> {
+        Some(Self::R0)
+    }
+
+    fn last() -> Option<Self> {
+        Some(Self::R300)
     }
 }
