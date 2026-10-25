@@ -72,7 +72,11 @@ bitflags! {
         const ANIMISMUS = 0x00010000;
         const DISPOSAL = 0x00020000;
         const QUINTESSENCE = 0x00040000;
+        const REJECTION = 0x00080000;
+        const DIVISION = 0x00100000;
+        const PROLIFERATION = 0x00200000;
         const BERLO = 0x10000000;
+        const RAVARI = 0x20000000;
 
         const GRAB_TURN_INSTRUCTIONS = 0x00400000;
         const DROP_INSTRUCTION = 0x00800000;
@@ -315,10 +319,10 @@ pub enum PartType{
     Input, Output, PolymerOutput,
     // Mechanisms
     Arm, BiArm, TriArm, HexArm, PistonArm,
-    Track, Berlo,
+    Track, Berlo, Ravari,
     // Glyphs
     Equilibrium, Bonding, MultiBonding, Unbonding, Calcification,
-    Projection, Purification,
+    Projection, Purification, Rejection, Division, Proliferation,
     Duplication, Animismus,
     Unification, Dispersion,
     TriplexBonding,
@@ -340,6 +344,7 @@ impl PartType {
             "piston" => PartType::PistonArm,
             "track" => PartType::Track,
             "baron" => PartType::Berlo,
+            "ravari" => PartType::Ravari,
             "glyph-marker" => PartType::Equilibrium,
             "bonder" => PartType::Bonding,
             "bonder-speed" => PartType::MultiBonding,
@@ -347,6 +352,9 @@ impl PartType {
             "glyph-calcification" => PartType::Calcification,
             "glyph-projection" => PartType::Projection,
             "glyph-purification" => PartType::Purification,
+            "glyph-rejection" => PartType::Rejection,
+            "glyph-division" => PartType::Division,
+            "glyph-proliferation" => PartType::Proliferation,
             "glyph-duplication" => PartType::Duplication,
             "glyph-life-and-death" => PartType::Animismus,
             "glyph-unification" => PartType::Unification,
@@ -370,6 +378,7 @@ impl PartType {
             Self::PistonArm => "piston",
             Self::Track => "track",
             Self::Berlo => "baron",
+            Self::Ravari => "ravari",
             Self::Equilibrium => "glyph-marker",
             Self::Bonding => "bonder",
             Self::MultiBonding => "bonder-speed",
@@ -377,6 +386,9 @@ impl PartType {
             Self::Calcification => "glyph-calcification",
             Self::Projection => "glyph-projection",
             Self::Purification => "glyph-purification",
+            Self::Rejection => "glyph-rejection",
+            Self::Division => "glyph-division",
+            Self::Proliferation => "glyph-proliferation",
             Self::Duplication => "glyph-duplication",
             Self::Animismus => "glyph-life-and-death",
             Self::Unification => "glyph-unification",
@@ -398,7 +410,8 @@ pub enum Instruction{
     Extend, Retract,
     PivotClockwise, PivotAnticlockwise,
     Advance, Retreat,
-    PeriodOverride, Reset, Repeat
+    PeriodOverride, Reset, Repeat,
+    Halt
 }
 
 impl Instruction {
@@ -418,6 +431,7 @@ impl Instruction {
             b'O' => Instruction::PeriodOverride,
             b'X' => Instruction::Reset, // incredible
             b'C' => Instruction::Repeat,
+            b'B' => Instruction::Halt,
             _ => return None
         })
     }
@@ -438,6 +452,7 @@ impl Instruction {
             Instruction::PeriodOverride => b'O',
             Instruction::Reset => b'X',
             Instruction::Repeat => b'C',
+            Instruction::Halt => b'B',
         }
     }
 }
